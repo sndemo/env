@@ -1,11 +1,24 @@
 RM=/bin/rm -f
 RMD=/bin/rm -Rf
 
-.install-gateway-rules:
-	kubectl apply -f gateway/gateway.yaml
 
-.delete-gateway-rules:
-	kubectl delete -f gateway/gateway.yaml
+.install-argo-cd:
+	kubectl create namespace argocd
+	kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.7.1/manifests/install.yaml
+	sudo curl -L -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.7.1/argocd-linux-amd64
+	sudo chmod +x /usr/local/bin/argocd
+
+.delete-argo-cd:
+	-kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.7.1/manifests/install.yaml	
+	-kubectl delete namespace argocd
+	-sudo $(RM) /usr/local/bin/argocd 	
+
+.install-kubernetes-dashboard:
+	kubectl apply -f dashboard/kubernetes-dashboard.yaml
+	
+
+.delete-kubernetes-dashboard:
+	kubectl delete -f dashboard/kubernetes-dashboard.yaml
 
 .install-istio-helm-tiller:
 	#-${RMD} istio-1.0.0
@@ -35,7 +48,7 @@ RMD=/bin/rm -Rf
 	-${RM} ~/.local/bin/istioctl
 
 .install-helm-bin:
-	curl https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-rc.2-linux-amd64.tar.gz | tar -xzv
+	curl -L https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-rc.2-linux-amd64.tar.gz | tar -xzv
 	sudo cp linux-amd64/helm /usr/local/bin
 	${RMD} linux-amd64
 	helm home
@@ -57,4 +70,12 @@ RMD=/bin/rm -Rf
 	-kubectl -n kube-system delete serviceaccount tiller
 	-make .delete-helm-bin
 	-echo 'helm deleted.'
-	
+
+#for ML model deployment with Seldon	
+.install-s2i: .delete-s2i
+	mkdir seldon
+	curl -L https://github.com/openshift/source-to-image/releases/download/v1.1.10/source-to-image-v1.1.10-27f0729d-linux-amd64.tar.gz | tar -xzv -C seldon
+	sudo cp seldon/s2i /usr/local/bin
+	$(RMD) seldon
+.delete-s2i:
+	-$(RM) /usr/local/bin/s2i
