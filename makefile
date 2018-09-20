@@ -1,6 +1,12 @@
 RM=/bin/rm -f
 RMD=/bin/rm -Rf
 
+.install-argo-ci:
+	helm repo add argo https://argoproj.github.io/argo-helm/
+	helm install argo/argo-ci --name argo-ci
+
+.delete-argo-ci:
+	helm del --purge argo-ci
 
 .install-argo-cd:
 	kubectl create namespace argocd
@@ -79,3 +85,11 @@ RMD=/bin/rm -Rf
 	$(RMD) seldon
 .delete-s2i:
 	-$(RM) /usr/local/bin/s2i
+
+.install-seldon-core:
+	helm install seldon-core-crd --name seldon-core-crd --repo https://storage.googleapis.com/seldon-charts --set usage_metrics.enabled=true
+	helm install seldon-core --name seldon-core --repo https://storage.googleapis.com/seldon-charts --set apife.enabled=true --set rbac.enabled=true --set ambassador.enabled=true
+
+.delete-seldon-core:
+	helm del --purge seldon-core-crd
+	helm del --purge seldon-core

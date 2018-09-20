@@ -113,7 +113,7 @@ INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.demo.endpoint},g /var/lib/kubelet/kubeconfig
 sed -i s,CLUSTER_NAME,${var.cluster-name},g /var/lib/kubelet/kubeconfig
 sed -i s,REGION,${data.aws_region.current.name},g /etc/systemd/system/kubelet.service
-sed -i s,MAX_PODS,20,g /etc/systemd/system/kubelet.service
+sed -i s,MAX_PODS,40,g /etc/systemd/system/kubelet.service
 sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.demo.endpoint},g /etc/systemd/system/kubelet.service
 sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service
 DNS_CLUSTER_IP=10.100.0.10
@@ -143,7 +143,7 @@ resource "aws_launch_configuration" "demo" {
 resource "aws_autoscaling_group" "demo" {
   desired_capacity     = 2
   launch_configuration = "${aws_launch_configuration.demo.id}"
-  max_size             = 2
+  max_size             = 3
   min_size             = 1
   name                 = "terraform-eks-demo"
   vpc_zone_identifier  = ["${aws_subnet.demo.*.id}"]
