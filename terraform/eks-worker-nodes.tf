@@ -7,8 +7,8 @@
 #  * AutoScaling Group to launch worker instances
 #
 
-resource "aws_iam_role" "demo-node" {
-  name = "terraform-eks-demo-node"
+resource "aws_iam_role" "eks-s12n-demo-node" {
+  name = "eks-s12n-demo-node"
 
   assume_role_policy = <<POLICY
 {
@@ -28,28 +28,28 @@ POLICY
 
 resource "aws_iam_role_policy_attachment" "demo-node-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       = "${aws_iam_role.eks-s12n-demo-node.name}"
 }
 
 resource "aws_iam_role_policy_attachment" "demo-node-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       = "${aws_iam_role.eks-s12n-demo-node.name}"
 }
 
 resource "aws_iam_role_policy_attachment" "demo-node-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = "${aws_iam_role.demo-node.name}"
+  role       = "${aws_iam_role.eks-s12n-demo-node.name}"
 }
 
-resource "aws_iam_instance_profile" "demo-node" {
-  name = "terraform-eks-demo"
-  role = "${aws_iam_role.demo-node.name}"
+resource "aws_iam_instance_profile" "eks-s12n-demo-node" {
+  name = "eks-s12n-demo"
+  role = "${aws_iam_role.eks-s12n-demo-node.name}"
 }
 
-resource "aws_security_group" "demo-node" {
-  name        = "terraform-eks-demo-node"
+resource "aws_security_group" "eks-s12n-demo-node" {
+  name        = "eks-s12n-demo-node"
   description = "Security group for all nodes in the cluster"
-  vpc_id      = "${aws_vpc.demo.id}"
+  vpc_id      = "${aws_vpc.eks-s12n-demo.id}"
 
   egress {
     from_port   = 0
@@ -60,28 +60,28 @@ resource "aws_security_group" "demo-node" {
 
   tags = "${
     map(
-     "Name", "terraform-eks-demo-node",
+     "Name", "eks-s12n-demo-node",
      "kubernetes.io/cluster/${var.cluster-name}", "owned",
     )
   }"
 }
 
-resource "aws_security_group_rule" "demo-node-ingress-self" {
+resource "aws_security_group_rule" "eks-s12n-demo-node-ingress-self" {
   description              = "Allow node to communicate with each other"
   from_port                = 0
   protocol                 = "-1"
-  security_group_id        = "${aws_security_group.demo-node.id}"
-  source_security_group_id = "${aws_security_group.demo-node.id}"
+  security_group_id        = "${aws_security_group.eks-s12n-demo-node.id}"
+  source_security_group_id = "${aws_security_group.eks-s12n-demo-node.id}"
   to_port                  = 65535
   type                     = "ingress"
 }
 
-resource "aws_security_group_rule" "demo-node-ingress-cluster" {
+resource "aws_security_group_rule" "eks-s12n-demo-node-ingress-cluster" {
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
   from_port                = 1025
   protocol                 = "tcp"
-  security_group_id        = "${aws_security_group.demo-node.id}"
-  source_security_group_id = "${aws_security_group.demo-cluster.id}"
+  security_group_id        = "${aws_security_group.eks-s12n-demo-node.id}"
+  source_security_group_id = "${aws_security_group.eks-s12n-demo-cluster.id}"
   to_port                  = 65535
   type                     = "ingress"
 }
@@ -108,13 +108,13 @@ locals {
 CA_CERTIFICATE_DIRECTORY=/etc/kubernetes/pki
 CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt
 mkdir -p $CA_CERTIFICATE_DIRECTORY
-echo "${aws_eks_cluster.demo.certificate_authority.0.data}" | base64 -d >  $CA_CERTIFICATE_FILE_PATH
+echo "${aws_eks_cluster.eks-s12n-demo-cluster.certificate_authority.0.data}" | base64 -d >  $CA_CERTIFICATE_FILE_PATH
 INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.demo.endpoint},g /var/lib/kubelet/kubeconfig
+sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-s12n-demo-cluster.endpoint},g /var/lib/kubelet/kubeconfig
 sed -i s,CLUSTER_NAME,${var.cluster-name},g /var/lib/kubelet/kubeconfig
 sed -i s,REGION,${data.aws_region.current.name},g /etc/systemd/system/kubelet.service
 sed -i s,MAX_PODS,40,g /etc/systemd/system/kubelet.service
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.demo.endpoint},g /etc/systemd/system/kubelet.service
+sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-s12n-demo-cluster.endpoint},g /etc/systemd/system/kubelet.service
 sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service
 DNS_CLUSTER_IP=10.100.0.10
 if [[ $INTERNAL_IP == 10.* ]] ; then DNS_CLUSTER_IP=172.20.0.10; fi
@@ -126,31 +126,32 @@ systemctl restart kubelet
 USERDATA
 }
 
-resource "aws_launch_configuration" "demo" {
+resource "aws_launch_configuration" "eks-s12n-demo" {
   associate_public_ip_address = true
-  iam_instance_profile        = "${aws_iam_instance_profile.demo-node.name}"
+  iam_instance_profile        = "${aws_iam_instance_profile.eks-s12n-demo-node.name}"
   image_id                    = "${data.aws_ami.eks-worker.id}"
   instance_type               = "t2.large"
-  name_prefix                 = "terraform-eks-demo"
-  security_groups             = ["${aws_security_group.demo-node.id}"]
+  name_prefix                 = "eks-s12n-demo"
+  security_groups             = ["${aws_security_group.eks-s12n-demo-node.id}"]
   user_data_base64            = "${base64encode(local.demo-node-userdata)}"
+  key_name                    = "aws-public"
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
-resource "aws_autoscaling_group" "demo" {
+resource "aws_autoscaling_group" "eks-s12n-demo" {
   desired_capacity     = 2
-  launch_configuration = "${aws_launch_configuration.demo.id}"
+  launch_configuration = "${aws_launch_configuration.eks-s12n-demo.id}"
   max_size             = 3
   min_size             = 1
-  name                 = "terraform-eks-demo"
-  vpc_zone_identifier  = ["${aws_subnet.demo.*.id}"]
+  name                 = "eks-s12n-demo"
+  vpc_zone_identifier  = ["${aws_subnet.eks-s12n-demo-private.*.id}"]
 
   tag {
     key                 = "Name"
-    value               = "terraform-eks-demo"
+    value               = "eks-s12n-demo"
     propagate_at_launch = true
   }
 

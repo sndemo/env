@@ -1,5 +1,6 @@
 RM=/bin/rm -f
 RMD=/bin/rm -Rf
+ISTIO_VERSION=1.0.3
 
 .install-argo-ci:
 	helm repo add argo https://argoproj.github.io/argo-helm/
@@ -27,17 +28,20 @@ RMD=/bin/rm -Rf
 	kubectl delete -f dashboard/kubernetes-dashboard.yaml
 
 .install-istio-helm-tiller:
-	#-${RMD} istio-1.0.0
-	#curl -L https://git.io/getLatestIstio | ISTIO_VERSION=1.0.0 sh
-	#cp istio-1.0.0/bin/istioctl ~/.local/bin
-	kubectl create namespace istio-system
-	helm install istio-1.0.0/install/kubernetes/helm/istio --debug --timeout 600 --wait --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true --set global.configValidation=false 
+	#-${RMD} istio-$(ISTIO_VERSION)
+	#curl -L https://git.io/getLatestIstio | ISTIO_VERSION=(ISTIO_VERSION) sh
+	#cp istio-$(ISTIO_VERSION)/bin/istioctl ~/.local/bin
+	-kubectl create namespace istio-system
+	helm install istio-$(ISTIO_VERSION)/install/kubernetes/helm/istio --debug --timeout 600 --wait --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true --set global.configValidation=true --set sidecarInjectorWebhook.enabled=true
 
 .install-istio-helm-template:
-	#cp istio-1.0.0/bin/istioctl ~/.local/bin
+	-${RMD} istio-1.0.3
+	curl -L https://git.io/getLatestIstio | ISTIO_VERSION=1.0.3 sh
+	cp istio-1.0.3/bin/istioctl ~/.local/bin
+	cp istio-1.0.3/bin/istioctl ~/.local/bin
 	kubectl create namespace istio-system
-	helm template istio-1.0.0/install/kubernetes/helm/istio --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true > istio-1.0.0/istio.yaml
-	kubectl create -f istio-1.0.0/istio.yaml
+	helm template istio-1.0.3/install/kubernetes/helm/istio --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true > istio-1.0.3/istio.yaml
+	kubectl create -f istio-1.0.3/istio.yaml
 
 .delete-istio-helm-tiller:
 	-helm del --purge istio
@@ -47,9 +51,9 @@ RMD=/bin/rm -Rf
 	-${RM} ~/.local/bin/istioctl
 
 .delete-istio-helm-template:
-	-kubectl delete -f istio-1.0.0/istio.yaml
+	-kubectl delete -f istio-1.0.3/istio.yaml
 	-kubectl -n istio-system delete job --all
-	-kubectl delete -f istio-1.0.0/install/kubernetes/helm/istio/templates/crds.yaml -n istio-system
+	-kubectl delete -f istio-1.0.3/install/kubernetes/helm/istio/templates/crds.yaml -n istio-system
 	-kubectl delete namespace istio-system
 	-${RM} ~/.local/bin/istioctl
 
