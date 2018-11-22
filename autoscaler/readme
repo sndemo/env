@@ -1,0 +1,3 @@
+replace eks-s12n-demo with your cluster name
+for detail read https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler/cloudprovider/aws
+https://jakubbujny.com/author/jakubbujny/

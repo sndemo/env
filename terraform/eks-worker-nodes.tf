@@ -26,6 +26,29 @@ resource "aws_iam_role" "eks-s12n-demo-node" {
 POLICY
 }
 
+resource "aws_iam_role_policy" "for-autoscaler" {
+  name = "for-autoscaler"
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeAutoScalingInstances",
+                "autoscaling:SetDesiredCapacity",
+                "autoscaling:DescribeTags",
+                "autoscaling:TerminateInstanceInAutoScalingGroup"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+POLICY
+  role = "${aws_iam_role.eks-s12n-demo-node.name}"
+}
+
 resource "aws_iam_role_policy_attachment" "demo-node-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = "${aws_iam_role.eks-s12n-demo-node.name}"
@@ -78,7 +101,7 @@ resource "aws_security_group_rule" "eks-s12n-demo-node-ingress-self" {
 
 resource "aws_security_group_rule" "eks-s12n-demo-node-ingress-cluster" {
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
-  from_port                = 1025
+  from_port                = 0
   protocol                 = "tcp"
   security_group_id        = "${aws_security_group.eks-s12n-demo-node.id}"
   source_security_group_id = "${aws_security_group.eks-s12n-demo-cluster.id}"
@@ -89,40 +112,18 @@ resource "aws_security_group_rule" "eks-s12n-demo-node-ingress-cluster" {
 data "aws_ami" "eks-worker" {
   filter {
     name   = "name"
-    values = ["eks-worker-*"]
+    values = ["amazon-eks-node-v25"]
   }
 
   most_recent = true
   owners      = ["602401143452"] # Amazon
 }
 
-# EKS currently documents this required userdata for EKS worker nodes to
-# properly configure Kubernetes applications on the EC2 instance.
-# We utilize a Terraform local here to simplify Base64 encoding this
-# information into the AutoScaling Launch Configuration.
-# More information: https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-06-05/amazon-eks-nodegroup.yaml
+# https://aws.amazon.com/blogs/opensource/improvements-eks-worker-node-provisioning/
 locals {
   demo-node-userdata = <<USERDATA
 #!/bin/bash -xe
-
-CA_CERTIFICATE_DIRECTORY=/etc/kubernetes/pki
-CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt
-mkdir -p $CA_CERTIFICATE_DIRECTORY
-echo "${aws_eks_cluster.eks-s12n-demo-cluster.certificate_authority.0.data}" | base64 -d >  $CA_CERTIFICATE_FILE_PATH
-INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-s12n-demo-cluster.endpoint},g /var/lib/kubelet/kubeconfig
-sed -i s,CLUSTER_NAME,${var.cluster-name},g /var/lib/kubelet/kubeconfig
-sed -i s,REGION,${data.aws_region.current.name},g /etc/systemd/system/kubelet.service
-sed -i s,MAX_PODS,40,g /etc/systemd/system/kubelet.service
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-s12n-demo-cluster.endpoint},g /etc/systemd/system/kubelet.service
-sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service
-DNS_CLUSTER_IP=10.100.0.10
-if [[ $INTERNAL_IP == 10.* ]] ; then DNS_CLUSTER_IP=172.20.0.10; fi
-sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g /etc/systemd/system/kubelet.service
-sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig
-sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service
-systemctl daemon-reload
-systemctl restart kubelet
+/etc/eks/bootstrap.sh --apiserver-endpoint '${aws_eks_cluster.eks-s12n-demo-cluster.endpoint}' --b64-cluster-ca '${aws_eks_cluster.eks-s12n-demo-cluster.certificate_authority.0.data}' '${aws_eks_cluster.eks-s12n-demo-cluster.name}'
 USERDATA
 }
 
@@ -151,7 +152,7 @@ resource "aws_autoscaling_group" "eks-s12n-demo" {
 
   tag {
     key                 = "Name"
-    value               = "eks-s12n-demo"
+    value               = "${aws_eks_cluster.eks-s12n-demo-cluster.name}"
     propagate_at_launch = true
   }
 
@@ -159,5 +160,11 @@ resource "aws_autoscaling_group" "eks-s12n-demo" {
     key                 = "kubernetes.io/cluster/${var.cluster-name}"
     value               = "owned"
     propagate_at_launch = true
+  }
+  
+  tag {
+    key = "k8s.io/cluster-autoscaler/enabled"
+    value = "whatever"
+    propagate_at_launch = false
   }
 }
