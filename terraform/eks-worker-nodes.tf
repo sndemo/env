@@ -135,7 +135,7 @@ resource "aws_launch_configuration" "eks-s12n-demo" {
   name_prefix                 = "eks-s12n-demo"
   security_groups             = ["${aws_security_group.eks-s12n-demo-node.id}"]
   user_data_base64            = "${base64encode(local.demo-node-userdata)}"
-  key_name                    = "aws-public"
+  key_name                    = "${var.ssh-key}"
 
   lifecycle {
     create_before_destroy = true
