@@ -37,7 +37,8 @@ ISTIO_VERSION=1.0.3
 	#curl -L https://git.io/getLatestIstio | ISTIO_VERSION=(ISTIO_VERSION) sh
 	#cp istio-$(ISTIO_VERSION)/bin/istioctl ~/.local/bin
 	-kubectl create namespace istio-system
-	helm install istio-$(ISTIO_VERSION)/install/kubernetes/helm/istio --debug --timeout 600 --wait --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true --set global.configValidation=true --set sidecarInjectorWebhook.enabled=true --set gateways.istio-ingressgateway.serviceAnnotations[0]='service.beta.kubernetes.io/aws-load-balancer-type="nlb"'
+	#helm install istio-$(ISTIO_VERSION)/install/kubernetes/helm/istio --debug --timeout 600 --wait --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true --set global.configValidation=true --set sidecarInjectorWebhook.enabled=true --set gateways.istio-ingressgateway.serviceAnnotations[0].service\.beta\.kubernetes\.io/aws-load-balancer-type=nlb
+	helm install istio-$(ISTIO_VERSION)/install/kubernetes/helm/istio --debug --timeout 600 --wait --name istio --namespace istio-system --set grafana.enabled=true --set servicegraph.enabled=true --set prometheus.enabled=true --set tracing.enabled=true --set global.configValidation=true --set sidecarInjectorWebhook.enabled=true
 
 .install-istio-helm-template:
 	-${RMD} istio-$(ISTIO_VERSION)

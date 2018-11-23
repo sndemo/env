@@ -7,9 +7,10 @@ metadata:
   name: {{ $key }}
   namespace: {{ $spec.namespace | default $.Release.Namespace }}
   annotations:
-    {{- range $key, $val := $spec.serviceAnnotations }}
-    {{ $key }}: {{ $val }}
-    {{- end }}
+     service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+#    {{- range $key, $val := $spec.serviceAnnotations }}
+#    {{ $key }}: {{ $val }}
+#    {{- end }}
   labels:
     chart: {{ $.Chart.Name }}-{{ $.Chart.Version | replace "+" "_" }}
     release: {{ $.Release.Name }}

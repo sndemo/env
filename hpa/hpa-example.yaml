@@ -4,6 +4,8 @@ metadata:
   name: myms 
   labels:
     app: myms 
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
 spec:
   ports:
   - port: 80
